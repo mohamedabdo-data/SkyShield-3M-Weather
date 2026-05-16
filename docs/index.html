@@ -3,39 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3M Weather - SkyShield Dashboard</title>
+    <title>3M Weather - NASA SkyShield</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        .section-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-        .ai-chat-container { max-height: 400px; overflow-y: auto; }
-        .nav-tab.active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .section-card { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .nav-tab.active { background: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
         .section-content { display: none; }
-        .section-content.active { display: block; }
+        .section-content.active { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        #realMap { height: 500px; width: 100%; border-radius: 15px; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 min-h-screen text-white">
+<body class="bg-slate-900 text-white min-h-screen">
 
-    <header class="bg-black bg-opacity-30 backdrop-blur-md p-4 border-b border-white border-opacity-20 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center space-x-4 space-x-reverse">
-                <div class="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-2xl">🌍</div>
-                <div>
-                    <h1 class="text-xl font-bold">مشروع 3M Weather (The Six Pyramids)</h1>
-                    <p class="text-blue-200 text-sm">منصة ذكاء مناخي مدعومة ببيانات NASA EarthData</p>
-                </div>
-            </div>
-            <div class="bg-green-600 px-3 py-1 rounded-full text-sm">🏆 نقاط الاستدامة: 1,250</div>
-        </div>
+    <header class="p-6 border-b border-white/10 bg-black/20 text-center">
+        <h1 class="text-3xl font-bold text-blue-400">SkyShield Dashboard 🛰️</h1>
+        <p class="text-gray-400">بواسطة فريق: The Six Pyramids</p>
     </header>
 
+    <nav class="flex justify-center gap-4 p-4">
+        <button class="nav-tab active px-4 py-2 rounded-lg" data-section="map">🗺️ الخريطة والبيانات</button>
+        <button class="nav-tab px-4 py-2 rounded-lg" data-section="ai">🤖 المساعد الذكي</button>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-4">
+        <div id="map" class="section-content active">
+            <div class="section-card p-4 rounded-2xl mb-4">
+                <h2 class="mb-4 text-xl font-bold">رصد الأقمار الصناعية (NASA GIBS)</h2>
+                <div id="realMap"></div>
+                <div class="mt-4 flex flex-wrap gap-2 justify-center">
+                    <button onclick="changeLayer('temp')" class="bg-red-600 px-3 py-1 rounded text-xs">درجات الحرارة (Terra)</button>
+                    <button onclick="changeLayer('clouds')" class="bg-blue-600 px-3 py-1 rounded text-xs">حركة السحب</button>
+                    <button onclick="changeLayer('fires')" class="bg-orange-600 px-3 py-1 rounded text-xs">حرائق الغابات</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ai" class="section-content">
+            <div class="section-card p-6 rounded-2xl h-[500px] flex flex-col">
+                <div id="chatBox" class="flex-1 overflow-y-auto mb-4 space-y-2 text-sm text-right">
+                    <div class="bg-blue-600/20 p-2 rounded">مرحباً محمد! أنا المساعد الذكي الخاص بـ SkyShield. اسألني عن حالة الجليد في القطبين.</div>
+                </div>
+                <div class="flex gap-2">
+                    <input id="aiInput" type="text" class="flex-1 bg-white/10 p-2 rounded outline-none" placeholder="اكتب سؤالك هنا...">
+                    <button onclick="askAI()" class="bg-blue-600 px-4 py-2 rounded">اسأل</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 1. نظام التبديل بين الصفحات
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+                document.getElementById(tab.dataset.section).classList.add('active');
+            });
+        });
+
+        // 2. إعداد الخريطة
+        let map = L.map('realMap').setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // طبقات ناسا الحقيقية (NASA GIBS)
+        let layers = {
+            temp: L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_LST_Day/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png', { opacity: 0.5 }),
+            clouds: L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg', { opacity: 0.7 }),
+            fires: L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Thermal_Anomalies_Day/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png', { opacity: 0.8 })
+        };
+
+        function changeLayer(type) {
+            Object.values(layers).forEach(l => map.removeLayer(l));
+            layers[type].addTo(map);
+            alert("تم تحميل بيانات ناسا: " + type);
+        }
+
+        // 3. المساعد الذكي (بسيط للتوضيح)
+        function askAI() {
+            let input = document.getElementById('aiInput');
+            let chatBox = document.getElementById('chatBox');
+            if(input.value) {
+                chatBox.innerHTML += `<div class="text-left bg-white/10 p-2 rounded">${input.value}</div>`;
+                chatBox.innerHTML += `<div class="bg-blue-600/20 p-2 rounded">بناءً على بيانات ناسا الحالية، درجة حرارة القطب الشمالي تشهد ارتفاعاً بنسبة 2% مقارنة بالعام الماضي.</div>`;
+                input.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
     <nav class="max-w-7xl mx-auto p-4">
         <div class="flex flex-wrap gap-2 justify-center">
             <button class="nav-tab active px-6 py-3 rounded-xl font-medium" data-section="satellite">🛰️ الأقمار الصناعية</button>
