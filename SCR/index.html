@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3M Weather - SkyShield Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .section-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .ai-chat-container { max-height: 400px; overflow-y: auto; }
+        .nav-tab.active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .section-content { display: none; }
+        .section-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 min-h-screen text-white">
+
+    <header class="bg-black bg-opacity-30 backdrop-blur-md p-4 border-b border-white border-opacity-20 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-4 space-x-reverse">
+                <div class="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-2xl">🌍</div>
+                <div>
+                    <h1 class="text-xl font-bold">مشروع 3M Weather (The Six Pyramids)</h1>
+                    <p class="text-blue-200 text-sm">منصة ذكاء مناخي مدعومة ببيانات NASA EarthData</p>
+                </div>
+            </div>
+            <div class="bg-green-600 px-3 py-1 rounded-full text-sm">🏆 نقاط الاستدامة: 1,250</div>
+        </div>
+    </header>
+
+    <nav class="max-w-7xl mx-auto p-4">
+        <div class="flex flex-wrap gap-2 justify-center">
+            <button class="nav-tab active px-6 py-3 rounded-xl font-medium" data-section="satellite">🛰️ الأقمار الصناعية</button>
+            <button class="nav-tab px-6 py-3 rounded-xl font-medium" data-section="map">🗺️ الخريطة التفاعلية</button>
+            <button class="nav-tab px-6 py-3 rounded-xl font-medium" data-section="ai-chat">🤖 المساعد الذكي</button>
+            <button class="nav-tab px-6 py-3 rounded-xl font-medium" data-section="carbon">🌱 حاسبة الكربون</button>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto p-4">
+        <div id="satellite" class="section-content active">
+            <div class="section-card rounded-2xl p-6 mb-6 text-center">
+                <h2 class="text-2xl font-bold mb-6">🛰️ رصد مباشر - NASA Worldview</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white bg-opacity-10 p-4 rounded-xl">
+                        <h3 class="font-bold">Terra MODIS</h3>
+                        <p class="text-green-400 text-sm">نشط ✅</p>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-xl">
+                        <h3 class="font-bold">Aqua MODIS</h3>
+                        <p class="text-green-400 text-sm">نشط ✅</p>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-xl">
+                        <h3 class="font-bold">FIRMS Alerts</h3>
+                        <p class="text-yellow-400 text-sm">مراقب ⚠️</p>
+                    </div>
+                </div>
+                <div id="satelliteImage" class="mt-6 h-64 bg-black bg-opacity-40 rounded-xl flex items-center justify-center">
+                    <p class="opacity-60 text-sm italic">عرض طبقات الأقمار الصناعية (Temperature / Smoke / Clouds)</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="map" class="section-content">
+            <div class="section-card rounded-2xl p-6 mb-6">
+                <h2 class="text-2xl font-bold mb-6 text-center">🗺️ خريطة مخاطر المناخ</h2>
+                <div id="realMap" class="h-96 rounded-xl border-2 border-white border-opacity-20 shadow-2xl"></div>
+            </div>
+        </div>
+
+        <div id="ai-chat" class="section-content">
+            <div class="section-card rounded-2xl p-6 mb-6">
+                <h2 class="text-2xl font-bold mb-6 text-center">🤖 مساعد المناخ (ChatGPT/Gemini)</h2>
+                <div class="ai-chat-container mb-4 space-y-4" id="chatMessages">
+                    <div class="bg-blue-600 p-3 rounded-lg text-sm w-3/4">مرحباً! أنا مساعد فريق "The Six Pyramids". كيف يمكنني مساعدتك في تحليل بيانات الطقس اليوم؟</div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="chatInput" placeholder="اسأل عن طقس الإسكندرية أو فينيسيا..." class="flex-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-lg px-4 py-2">
+                    <button class="bg-blue-500 px-6 py-2 rounded-lg hover:bg-blue-600">إرسال</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="carbon" class="section-content">
+            <div class="section-card rounded-2xl p-6 mb-6 text-center">
+                <h2 class="text-2xl font-bold mb-6">🌱 بصمتك الكربونية</h2>
+                <p class="mb-4">احسب مقدار التوفير في انبعاثات الكربون عند استخدام المواصلات العامة</p>
+                <input type="number" placeholder="المسافة بالكيلومتر" class="bg-white bg-opacity-10 p-2 rounded-lg text-center mb-4">
+                <button class="bg-green-600 w-full py-3 rounded-xl font-bold">احسب ووفر الكوكب</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // نظام التنقل بين الأقسام
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+                document.getElementById(this.dataset.section).classList.add('active');
+                
+                if(this.dataset.section === 'map') { setTimeout(initMap, 200); }
+            });
+        });
+
+        // تشغيل الخريطة
+        let map;
+        function initMap() {
+            if (!map) {
+                map = L.map('realMap').setView([31.2001, 29.9187], 10); // الإسكندرية كمثال
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                L.marker([31.2001, 29.9187]).addTo(map).bindPopup('منطقة تحت المراقبة: الإسكندرية').openPopup();
+            }
+        }
+    </script>
+</body>
+</html>
